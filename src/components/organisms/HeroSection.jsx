@@ -3,7 +3,7 @@ import SearchBar from "@/components/molecules/SearchBar";
 import Button from "@/components/atoms/Button";
 import ApperIcon from "@/components/ApperIcon";
 
-const HeroSection = ({ onSearch }) => {
+const HeroSection = ({ onSearch, onBrowseEvents, onCreateEvent }) => {
   return (
     <section className="relative bg-gradient-to-br from-primary/5 via-background to-accent/5 py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -48,11 +48,11 @@ const HeroSection = ({ onSearch }) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
-            <Button size="lg" className="flex items-center gap-2">
+<Button size="lg" className="flex items-center gap-2" onClick={onBrowseEvents}>
               <ApperIcon name="Search" size={20} />
               Browse Events
             </Button>
-            <Button variant="outline" size="lg" className="flex items-center gap-2">
+            <Button variant="outline" size="lg" className="flex items-center gap-2" onClick={onCreateEvent}>
               <ApperIcon name="Plus" size={20} />
               Create Event
             </Button>
