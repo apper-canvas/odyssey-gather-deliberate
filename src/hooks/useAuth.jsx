@@ -31,17 +31,49 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (userData) => {
-    try {
+try {
       const user = {
         ...userData,
         bio: userData.bio || "",
         location: userData.location || "",
-        website: userData.website || ""
+        website: userData.website || "",
+        email: userData.email || ""
       };
       
       setUser(user);
       setIsAuthenticated(true);
       localStorage.setItem("gather_user", JSON.stringify(user));
+      
+      // Send welcome email for new user registration
+      if (userData.isNewUser && userData.email) {
+        try {
+          const { ApperClient } = window.ApperSDK || {};
+          if (ApperClient) {
+            const apperClient = new ApperClient({
+              apperProjectId: import.meta.env.VITE_APPER_PROJECT_ID,
+              apperPublicKey: import.meta.env.VITE_APPER_PUBLIC_KEY
+            });
+
+            const emailData = {
+              type: 'welcome',
+              to: userData.email,
+              data: {
+                userName: userData.name || 'New User',
+                userEmail: userData.email
+              }
+            };
+
+            await apperClient.functions.invoke(import.meta.env.VITE_SEND_NOTIFICATION_EMAIL, {
+              body: JSON.stringify(emailData),
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            });
+          }
+        } catch (emailError) {
+          console.info(`apper_info: Got an error in this function: ${import.meta.env.VITE_SEND_NOTIFICATION_EMAIL}. The error is: ${emailError.message}`);
+        }
+      }
       
       return Promise.resolve(user);
     } catch (error) {

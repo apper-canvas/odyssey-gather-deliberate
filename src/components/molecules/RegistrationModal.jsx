@@ -6,16 +6,20 @@ import ApperIcon from "@/components/ApperIcon";
 import Button from "@/components/atoms/Button";
 import Card from "@/components/atoms/Card";
 import { registrationService } from "@/services/api/registrationService";
-
+import { useAuth } from "@/hooks/useAuth";
 const RegistrationModal = ({ event, isOpen, onClose, onSuccess, registrationCount = 0 }) => {
   const [isLoading, setIsLoading] = useState(false);
 
-const handleRegister = async () => {
+const { user } = useAuth();
+
+  const handleRegister = async () => {
     setIsLoading(true);
     try {
       const registration = await registrationService.create({
         eventId: event.Id,
-        userId: "current-user", // In real app, this would come from auth context
+        userId: user?.Id || "current-user",
+        userEmail: user?.email || "",
+        userName: user?.name || "Event Participant"
       });
       
       if (registration.status === "waitlist") {

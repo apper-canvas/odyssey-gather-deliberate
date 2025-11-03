@@ -13,7 +13,17 @@ import CreateEvent from "@/components/pages/CreateEvent";
 import EditEvent from "@/components/pages/EditEvent";
 import Profile from "@/components/pages/Profile";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { useEffect } from "react";
 
+// Initialize ApperClient globally for email notifications
+const initializeApperClient = () => {
+  if (typeof window !== 'undefined' && window.ApperSDK) {
+    window.apperClient = new window.ApperSDK.ApperClient({
+      apperProjectId: import.meta.env.VITE_APPER_PROJECT_ID,
+      apperPublicKey: import.meta.env.VITE_APPER_PUBLIC_KEY
+    });
+  }
+};
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? children : <Navigate to="/login" replace />;
@@ -25,6 +35,21 @@ const PublicRoute = ({ children }) => {
 };
 
 function App() {
+  useEffect(() => {
+    // Initialize ApperClient when SDK is loaded
+    initializeApperClient();
+    
+    // Listen for SDK load event if it's not already loaded
+    const handleSDKLoad = () => {
+      initializeApperClient();
+    };
+    
+    if (!window.ApperSDK) {
+      window.addEventListener('ApperSDKLoaded', handleSDKLoad);
+      return () => window.removeEventListener('ApperSDKLoaded', handleSDKLoad);
+    }
+  }, []);
+
   return (
     <AuthProvider>
       <Router>
