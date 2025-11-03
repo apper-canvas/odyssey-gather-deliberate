@@ -7,20 +7,24 @@ import Button from "@/components/atoms/Button";
 import Card from "@/components/atoms/Card";
 import { registrationService } from "@/services/api/registrationService";
 
-const RegistrationModal = ({ event, isOpen, onClose, onSuccess }) => {
+const RegistrationModal = ({ event, isOpen, onClose, onSuccess, registrationCount = 0 }) => {
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleRegister = async () => {
+const handleRegister = async () => {
     setIsLoading(true);
     try {
-      await registrationService.create({
+      const registration = await registrationService.create({
         eventId: event.Id,
         userId: "current-user", // In real app, this would come from auth context
-        status: "confirmed"
       });
       
-      toast.success("Successfully registered for the event!");
-      onSuccess?.();
+      if (registration.status === "waitlist") {
+        toast.success("Successfully joined the waitlist! You'll be notified if a spot opens up.");
+      } else {
+        toast.success("Successfully registered for the event!");
+      }
+      
+      onSuccess?.(registration);
       onClose();
     } catch (error) {
       toast.error("Failed to register for the event. Please try again.");
@@ -44,8 +48,8 @@ const RegistrationModal = ({ event, isOpen, onClose, onSuccess }) => {
           >
             <Card className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-secondary">
-                  Confirm Registration
+<h3 className="text-xl font-semibold text-secondary">
+                  {registrationCount >= event.capacity ? "Join Waitlist" : "Confirm Registration"}
                 </h3>
                 <Button
                   variant="ghost"
@@ -81,8 +85,11 @@ const RegistrationModal = ({ event, isOpen, onClose, onSuccess }) => {
                 </div>
 
                 <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg">
-                  <p className="text-sm text-primary font-medium">
-                    You're about to register for this event. You'll receive a confirmation email shortly.
+<p className="text-sm text-primary font-medium">
+                    {registrationCount >= event.capacity ? 
+                      "This event is full, but you can join the waitlist. You'll be notified if a spot becomes available." :
+                      "You're about to register for this event. You'll receive a confirmation email shortly."
+                    }
                   </p>
                 </div>
               </div>
@@ -97,7 +104,7 @@ const RegistrationModal = ({ event, isOpen, onClose, onSuccess }) => {
                   Cancel
                 </Button>
                 <Button
-                  onClick={handleRegister}
+onClick={handleRegister}
                   className="flex-1"
                   disabled={isLoading}
                 >
@@ -108,10 +115,10 @@ const RegistrationModal = ({ event, isOpen, onClose, onSuccess }) => {
                         animate={{ rotate: 360 }}
                         transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                       />
-                      Registering...
+                      {registrationCount >= event.capacity ? "Joining Waitlist..." : "Registering..."}
                     </div>
                   ) : (
-                    "Confirm Registration"
+                    registrationCount >= event.capacity ? "Join Waitlist" : "Confirm Registration"
                   )}
                 </Button>
               </div>

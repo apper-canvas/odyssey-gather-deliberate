@@ -6,7 +6,7 @@ import Card from "@/components/atoms/Card";
 import Badge from "@/components/atoms/Badge";
 import Button from "@/components/atoms/Button";
 
-const EventCard = ({ event, onRegister, isRegistered = false, showRegisterButton = true }) => {
+const EventCard = ({ event, onRegister, isRegistered = false, showRegisterButton = true, registrationCount = 0 }) => {
   const eventDate = new Date(event.date);
   const isUpcoming = eventDate > new Date();
 
@@ -61,9 +61,20 @@ const EventCard = ({ event, onRegister, isRegistered = false, showRegisterButton
               <span className="line-clamp-1">{event.location}</span>
             </div>
             
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+<div className="flex items-center gap-2 text-sm text-gray-600">
               <ApperIcon name="Users" size={16} className="text-primary" />
-              <span>{event.capacity} spots available</span>
+              <span>
+                {registrationCount >= event.capacity ? (
+                  <span className="text-accent font-semibold">Full</span>
+                ) : (
+                  `${event.capacity - registrationCount} spots available`
+                )}
+              </span>
+              {registrationCount >= event.capacity && (
+                <Badge variant="destructive" className="text-xs px-2 py-0.5">
+                  FULL
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -74,14 +85,15 @@ const EventCard = ({ event, onRegister, isRegistered = false, showRegisterButton
               </Button>
             </Link>
             
-            {showRegisterButton && isUpcoming && (
+{showRegisterButton && isUpcoming && (
               <Button
                 size="sm"
                 variant={isRegistered ? "secondary" : "primary"}
                 onClick={() => onRegister && onRegister(event.Id)}
                 className="flex-shrink-0"
               >
-                {isRegistered ? "Registered" : "Register"}
+                {isRegistered ? "Registered" : 
+                 registrationCount >= event.capacity ? "Join Waitlist" : "Register"}
               </Button>
             )}
           </div>

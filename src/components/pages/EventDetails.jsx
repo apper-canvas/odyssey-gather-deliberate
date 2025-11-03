@@ -1,36 +1,52 @@
-import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { toast } from "react-toastify";
+import { eventService } from "@/services/api/eventService";
+import { registrationService } from "@/services/api/registrationService";
 import ApperIcon from "@/components/ApperIcon";
+import Badge from "@/components/atoms/Badge";
 import Button from "@/components/atoms/Button";
 import Card from "@/components/atoms/Card";
-import Badge from "@/components/atoms/Badge";
+import About from "@/components/pages/About";
+import Home from "@/components/pages/Home";
+import Events from "@/components/pages/Events";
 import Loading from "@/components/ui/Loading";
 import Error from "@/components/ui/Error";
 import RegistrationModal from "@/components/molecules/RegistrationModal";
-import { eventService } from "@/services/api/eventService";
-import { registrationService } from "@/services/api/registrationService";
 import { useAuth } from "@/hooks/useAuth";
 
 const EventDetails = () => {
   const { id } = useParams();
   const { isAuthenticated } = useAuth();
-  const [event, setEvent] = useState(null);
+const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isRegistered, setIsRegistered] = useState(false);
+  const [userRegistration, setUserRegistration] = useState(null);
+  const [registrationCount, setRegistrationCount] = useState(0);
+  const [waitlistCount, setWaitlistCount] = useState(0);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [relatedEvents, setRelatedEvents] = useState([]);
-
   const loadEvent = async () => {
     setLoading(true);
     setError("");
     
-    try {
+try {
       const eventData = await eventService.getById(parseInt(id));
       setEvent(eventData);
+      
+      // Load registration counts
+      const confirmedCount = await registrationService.getRegistrationCountForEvent(eventData.Id);
+      const waitlistCount = await registrationService.getWaitlistCountForEvent(eventData.Id);
+      setRegistrationCount(confirmedCount);
+      setWaitlistCount(waitlistCount);
+      
+      // Check if current user is registered
+      const userReg = await registrationService.getUserRegistrationForEvent(eventData.Id, "current-user");
+      setUserRegistration(userReg);
+      setIsRegistered(!!userReg);
       
       // Load related events
       const allEvents = await eventService.getAll();
@@ -50,7 +66,8 @@ const EventDetails = () => {
     loadEvent();
   }, [id]);
 
-  const handleRegisterClick = () => {
+const handleRegisterClick = () => {
+    if (isRegistered) return;
     if (!isAuthenticated) {
       toast.info("Please sign in to register for events");
       return;
@@ -58,9 +75,16 @@ const EventDetails = () => {
     setShowRegistrationModal(true);
   };
 
-  const handleRegistrationSuccess = () => {
+const handleRegistrationSuccess = async (registration) => {
     setIsRegistered(true);
+    setUserRegistration(registration);
     setShowRegistrationModal(false);
+    
+    // Refresh counts
+    const confirmedCount = await registrationService.getRegistrationCountForEvent(event.Id);
+    const waitlistCount = await registrationService.getWaitlistCountForEvent(event.Id);
+    setRegistrationCount(confirmedCount);
+    setWaitlistCount(waitlistCount);
   };
 
   if (loading) return <Loading type="page" />;
@@ -138,11 +162,30 @@ const EventDetails = () => {
                   </div>
                   
                   <div className="flex items-center gap-3 text-gray-600">
-                    <ApperIcon name="Users" size={20} className="text-primary" />
-                    <span>{event.capacity} spots available</span>
+<ApperIcon name="Users" size={20} className="text-primary" />
+                    <span>
+                      {registrationCount >= event.capacity ? (
+                        <span className="text-accent font-semibold">Event Full</span>
+                      ) : (
+                        `${event.capacity - registrationCount} of ${event.capacity} spots available`
+                      )}
+                    </span>
                   </div>
+{waitlistCount > 0 && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <ApperIcon name="Clock" size={20} className="text-warning" />
+                      <span>{waitlistCount} on waitlist</span>
+                    </div>
+                  )}
+                  {userRegistration?.status === "waitlist" && (
+                    <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
+                      <div className="flex items-center gap-2 text-warning font-medium">
+                        <ApperIcon name="Clock" size={16} />
+                        <span>You're on the waitlist</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-
                 <div className="prose max-w-none">
                   <h3 className="text-xl font-semibold text-secondary mb-4">About This Event</h3>
                   <p className="text-gray-600 leading-relaxed">
@@ -167,7 +210,7 @@ const EventDetails = () => {
                 )}
               </div>
 
-              {isUpcoming ? (
+{isUpcoming ? (
                 <div className="space-y-4">
                   <Button
                     onClick={handleRegisterClick}
@@ -176,9 +219,21 @@ const EventDetails = () => {
                     disabled={isRegistered}
                   >
                     {isRegistered ? (
+                      userRegistration?.status === "waitlist" ? (
+                        <>
+                          <ApperIcon name="Clock" size={16} className="mr-2" />
+                          On Waitlist
+                        </>
+                      ) : (
+                        <>
+                          <ApperIcon name="Check" size={16} className="mr-2" />
+                          Registered
+                        </>
+                      )
+                    ) : registrationCount >= event.capacity ? (
                       <>
-                        <ApperIcon name="Check" size={16} className="mr-2" />
-                        Registered
+                        <ApperIcon name="Clock" size={16} className="mr-2" />
+                        Join Waitlist
                       </>
                     ) : (
                       <>
@@ -206,16 +261,22 @@ const EventDetails = () => {
 
               {/* Event Stats */}
               <div className="mt-8 pt-6 border-t border-gray-200">
-                <div className="grid grid-cols-2 gap-4 text-center">
+<div className="grid grid-cols-2 gap-4 text-center">
                   <div>
                     <div className="text-2xl font-bold text-primary">{event.capacity}</div>
                     <div className="text-xs text-gray-500">Capacity</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-accent">12</div>
+                    <div className="text-2xl font-bold text-accent">{registrationCount}</div>
                     <div className="text-xs text-gray-500">Registered</div>
                   </div>
                 </div>
+                {waitlistCount > 0 && (
+                  <div className="text-center mt-4">
+                    <div className="text-lg font-bold text-warning">{waitlistCount}</div>
+                    <div className="text-xs text-gray-500">On Waitlist</div>
+                  </div>
+                )}
               </div>
 
               {/* Organizer Info */}
@@ -278,11 +339,12 @@ const EventDetails = () => {
       </div>
 
       {/* Registration Modal */}
-      <RegistrationModal
+<RegistrationModal
         event={event}
         isOpen={showRegistrationModal}
         onClose={() => setShowRegistrationModal(false)}
         onSuccess={handleRegistrationSuccess}
+        registrationCount={registrationCount}
       />
     </div>
   );

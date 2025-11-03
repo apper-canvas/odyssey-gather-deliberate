@@ -2,8 +2,28 @@ import mockRegistrations from "@/services/mockData/registrations.json";
 
 class RegistrationService {
   constructor() {
-    this.registrations = [...mockRegistrations];
+this.registrations = [...mockRegistrations];
     this.nextId = Math.max(...this.registrations.map(reg => reg.Id)) + 1;
+  }
+
+  async getRegistrationCountForEvent(eventId) {
+    await this.delay();
+    return this.registrations.filter(reg => reg.eventId === eventId && reg.status === "confirmed").length;
+  }
+
+  async getWaitlistCountForEvent(eventId) {
+    await this.delay();
+    return this.registrations.filter(reg => reg.eventId === eventId && reg.status === "waitlist").length;
+  }
+
+  async getWaitlistPositionForUser(eventId, userId) {
+    await this.delay();
+    const waitlistRegistrations = this.registrations
+      .filter(reg => reg.eventId === eventId && reg.status === "waitlist")
+      .sort((a, b) => new Date(a.registeredAt) - new Date(b.registeredAt));
+    
+    const userRegistration = waitlistRegistrations.find(reg => reg.userId === userId);
+    return userRegistration ? waitlistRegistrations.indexOf(userRegistration) + 1 : null;
   }
 
   async delay() {
@@ -24,11 +44,21 @@ class RegistrationService {
     return { ...registration };
   }
 
-  async create(registrationData) {
+async create(registrationData) {
     await this.delay();
+    
+    // Import event service to check capacity
+    const { eventService } = await import('./eventService.js');
+    const event = await eventService.getById(registrationData.eventId);
+    const confirmedCount = await this.getRegistrationCountForEvent(registrationData.eventId);
+    
+    // Determine registration status based on capacity
+    const status = confirmedCount >= event.capacity ? "waitlist" : "confirmed";
+    
     const newRegistration = {
       ...registrationData,
       Id: this.nextId++,
+      status: status,
       registeredAt: new Date().toISOString()
     };
     this.registrations.push(newRegistration);
@@ -61,7 +91,7 @@ class RegistrationService {
     return { success: true };
   }
 
-  async getByEventId(eventId) {
+async getByEventId(eventId) {
     await this.delay();
     return this.registrations.filter(reg => reg.eventId === eventId);
   }
@@ -69,6 +99,11 @@ class RegistrationService {
   async getByUserId(userId) {
     await this.delay();
     return this.registrations.filter(reg => reg.userId === userId);
+  }
+
+  async getUserRegistrationForEvent(eventId, userId) {
+    await this.delay();
+    return this.registrations.find(reg => reg.eventId === eventId && reg.userId === userId);
   }
 }
 
